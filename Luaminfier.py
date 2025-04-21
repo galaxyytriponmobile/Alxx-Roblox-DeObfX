@@ -1,185 +1,104 @@
 import re
-import os
 import base64
 
 # --- Beautifier Function ---
 def beautify_code(code):
     indent_level = 0
-    beautified_code = ''
+    beautified = ''
     indent_keywords = {'function', 'if', 'else', 'elseif', 'for', 'while', 'do'}
     unindent_keywords = {'end', 'else', 'elseif'}
-    lines = re.split(r'(\b(?:function|if|else|elseif|for|while|do|end)\b|\n|;)', code)
-
-    for line in lines:
-        stripped_line = line.strip()
-
-        if stripped_line in unindent_keywords:
-            indent_level -= 1
-
-        if stripped_line:
-            beautified_code += '    ' * indent_level + stripped_line + '\n'
-
-        if stripped_line in indent_keywords:
+    for line in code.splitlines():
+        stripped = line.strip()
+        # decrease indent before lines with unindent keywords
+        if any(stripped.startswith(kw) for kw in unindent_keywords):
+            indent_level = max(indent_level - 1, 0)
+        if stripped:
+            beautified += '    ' * indent_level + stripped + '\n'
+        else:
+            beautified += '\n'
+        # increase indent after lines with indent keywords
+        if any(stripped.startswith(kw) for kw in indent_keywords):
             indent_level += 1
+    return beautified
 
-    return beautified_code.strip()
-
-# --- Add New Line After Semicolons and Ensure New Lines ---
-def add_newlines_after_semicolons(code):
-    code = re.sub(r';', ';\n', code)
-    code = re.sub(r'(\)|\}|\])', r'\1\n', code)
-    lines = code.splitlines()
-    formatted_code = '\n'.join(line.strip() for line in lines if line.strip())
-    return formatted_code
-
-# --- Lua Parsing Functions ---
-def parse_lua_code(code):
-    variables = re.findall(r'local\s+([\w_]+)\s*=', code)
-    functions = re.findall(r'function\s+([\w_]+)\s*\(', code)
-    return variables, functions
-
-def deobfuscate_variables(code, variables):
-    deobf_map = {}
-    counter = 1
-    
-    for var in variables:
-        deobf_var = f'deobf_var_{counter}'
-        deobf_map[var] = deobf_var
-        counter += 1
-
-    for var, deobf_var in deobf_map.items():
-        code = re.sub(r'\b' + re.escape(var) + r'\b', deobf_var, code)
-
+# --- Inline string.char and static tables ---
+def inline_string_chars(code):
+    # string.char(65,66) -> "AB"
+    code = re.sub(
+        r'string\.char\(([0-9,\s]+)\)',  # Fixed this line by adding a closing parenthesis
+        lambda m: '"' + ''.join(chr(int(x)) for x in m.group(1).split(',')) + '"',
+        code
+    )
+    # local p1 = {112,114} -> local p1_resolved = "pr"
+    def repl_table(match):
+        var = match.group(1)
+        nums = match.group(2)
+        s = ''.join(chr(int(x)) for x in nums.split(','))
+        return f'local {var}_resolved = "{s}"'
+    code = re.sub(r'local\s+(\w+)\s*=\s*\{([\d,\s]+)\}', repl_table, code)
     return code
 
-def deobfuscate_functions(code, functions):
-    deobf_map = {}
-    counter = 1
-
-    for func in functions:
-        deobf_func = f'deobf_func_{counter}'
-        deobf_map[func] = deobf_func
-        counter += 1
-
-    for func, deobf_func in deobf_map.items():
-        code = re.sub(r'\b' + re.escape(func) + r'\b', deobf_func, code)
-
-    return code
-
-def decode_strings(code):
-    def decode_base64(match):
-        encoded_str = match.group(1)
+# --- Decode base64 literals ---
+def decode_base64_literals(code):
+    def repl(match):
+        b64 = match.group(1)
         try:
-            decoded_bytes = base64.b64decode(encoded_str).decode('utf-8')
-            return f'"{decoded_bytes}"'
-        except Exception:
+            decoded = base64.b64decode(b64).decode('utf-8')
+            return f'"{decoded}"'
+        except:
             return match.group(0)
+    return re.sub(r'"([A-Za-z0-9+/=]{8,})"', repl, code)
 
-    return re.sub(r'base64.decode\("([^"]+)"\)', decode_base64, code)
+# --- Emulate loadstring ---
+def emulate_loadstring(code):
+    def repl_ls(match):
+        left = match.group(1)
+        right = match.group(2)
+        return f'local _exec = loadstring({left} .. {right})\n_exec()'
+    return re.sub(r'loadstring\((\w+_resolved)\s*\.\.\s*(\w+_resolved)\)', repl_ls, code)
 
-# --- New Deobfuscation Features ---
-def simplify_boolean_expressions(code):
-    # Simplify boolean expressions like "if true then" to "if true then"
-    code = re.sub(r'\bif\s+true\s+then\b', 'if true then', code)
-    code = re.sub(r'\bif\s+false\s+then\b', 'if false then', code)
+# --- Rename identifiers ---
+def rename_identifiers(code):
+    # rename locals
+    vars_ = re.findall(r'local\s+(\w+)', code)
+    var_map = {}
+    cnt = 1
+    for v in vars_:
+        if v.endswith('_resolved'):
+            continue
+        var_map[v] = f'deobf_var_{cnt}'
+        cnt += 1
+    for orig, new in var_map.items():
+        code = re.sub(rf'(?<!\.)\b{orig}\b', new, code)
+    # rename functions
+    funcs = re.findall(r'function\s+(\w+)', code)
+    func_map = {}
+    cnt = 1
+    for f in funcs:
+        func_map[f] = f'deobf_func_{cnt}'
+        cnt += 1
+    for orig, new in func_map.items():
+        code = re.sub(rf'(?<!\.)\b{orig}\b', new, code)
     return code
 
-def simplify_string_concatenation(code):
-    # Simplify concatenation of string literals, e.g., "hello" .. "world" -> "helloworld"
-    return re.sub(r'"([^"]+)"\s*\.\.\s*"([^"]+)"', lambda m: f'"{m.group(1)}{m.group(2)}"', code)
-
-def decode_hex_strings(code):
-    # Convert hexadecimal strings to plain text if detected
-    return re.sub(r'\\x([0-9a-fA-F]{2})', lambda m: chr(int(m.group(1), 16)), code)
-
-def unroll_loops(code):
-    # Unroll basic loops for constant ranges
-    def loop_unroll(match):
-        var, start, end = match.groups()
-        return '\n'.join([f'{var} = {i}' for i in range(int(start), int(end) + 1)])
-
-    return re.sub(r'for\s+(\w+)\s*=\s*(\d+),\s*(\d+)\s*do', loop_unroll, code)
-
-def preserve_comments(code):
-    # Capture and preserve comments in obfuscated code
-    return re.sub(r'--.*', lambda m: f'{m.group(0)}', code)
-
-# --- Makeshift Decompiler with Enhanced Features ---
-def makeshift_decompiler(code):
-    # Simplify function definitions
-    code = re.sub(r'function\s*\(.*?\)', 'function(...)', code)
-    
-    # Simplify obfuscated loops
-    code = re.sub(r'for\s*([\w_]+)\s*=.*?do', r'for \1 = ... do', code)
-    
-    # Simplify complex conditions
-    code = re.sub(r'if\s*\(.*?\)\sthen', 'if condition then', code)
-    
-    # Reverse string obfuscation patterns
-    code = re.sub(r'string\.char\(([\d, ]+)\)', lambda m: ''.join(chr(int(x)) for x in m.group(1).split(',')), code)
-    
-    # Simplify tables with numbered keys
-    code = re.sub(r'\[(\d+)\]\s*=\s*', '', code)
-    
-    # Handle inline function patterns
-    code = re.sub(r'\w+\(\s*function\s*\(.*?\)\s*', 'function(...) ', code)
-    
-    # Simplify math expressions
-    code = re.sub(r'(\d+)\s*\+\s*(\d+)', lambda m: str(int(m.group(1)) + int(m.group(2))), code)
-    code = re.sub(r'(\d+)\s*\-\s*(\d+)', lambda m: str(int(m.group(1)) - int(m.group(2))), code)
-    
-    # Simplify while loops
-    code = re.sub(r'while\s*\(.*?\)\s*do', 'while true do', code)
-    
-    # Add comments for loadstring
-    code = re.sub(r'loadstring\((.*?)\)', r'-- Decompiled loadstring: \1', code)
-    
-    # Clean up trailing spaces
-    code = re.sub(r'[^\S\n]+$', '', code, flags=re.MULTILINE)
-    
-    # Add space around "local"
-    code = re.sub(r'\blocal\b', ' local', code)
-    
-    # Apply new features
-    code = simplify_boolean_expressions(code)
-    code = simplify_string_concatenation(code)
-    code = decode_hex_strings(code)
-    code = unroll_loops(code)
-    code = preserve_comments(code)
-
+# --- Full pipeline ---
+def process_lua_code(path):
+    with open(path, 'r') as f:
+        code = f.read()
+    code = inline_string_chars(code)
+    code = decode_base64_literals(code)
+    code = emulate_loadstring(code)
+    code = rename_identifiers(code)
+    code = beautify_code(code)
     return code
 
-# --- Full Processing Pipeline ---
-def process_lua_code(file_path):
-    with open(file_path, 'r') as file:
-        lua_code = file.read()
+if __name__ == '__main__':
+    import sys
+    in_file = sys.argv[1] if len(sys.argv) > 1 else 'test.txt'
+    out_file = sys.argv[2] if len(sys.argv) > 2 else 'de_test.txt'
+    deobf = process_lua_code(in_file)
+    with open(out_file, 'w') as f:
+        f.write(deobf)
+    print(f'Deobfuscated saved to {out_file}')
+input("Press enter to close the script.")
 
-    lua_code = decode_strings(lua_code)
-    variables, functions = parse_lua_code(lua_code)
-    
-    lua_code = deobfuscate_variables(lua_code, variables)
-    lua_code = deobfuscate_functions(lua_code, functions)
-    
-    lua_code = add_newlines_after_semicolons(lua_code)
-    
-    lua_code = makeshift_decompiler(lua_code)
-    
-    lua_code = beautify_code(lua_code)
-
-    return lua_code
-
-# --- Main Function ---
-def main():
-    input_file_path = 'C:\\Users\\Administrator\\Documents\\obfuscated.lua'
-    processed_code = process_lua_code(input_file_path)
-
-    output_path = 'C:\\Users\\Administrator\\Desktop\\luadeobfuscated.lua'
-    with open(output_path, 'w') as output_file:
-        output_file.write(processed_code)
-
-    print(f"Processed Lua code has been saved to {output_path}.")
-    input("Press Enter to close the script.")
-
-# Execute the main function
-if __name__ == "__main__":
-    main()
