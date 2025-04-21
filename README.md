@@ -72,15 +72,14 @@ A fully new test file, just for now.
 ### **UPDATE 7**:  
 - Additional features added to the makeshift decompiler.
 
----
-
-### 🔥 **UPDATE 8 (LATEST)** 🔥  
+###  **UPDATE 8**   
 - **Predefined Renaming Patterns**: You can now automatically rename variables and functions based on a custom prefix, simplifying the renaming process.
 - **Advanced Decompilation**: Added new techniques to handle more complex obfuscation patterns in Lua code, such as table indexing simplification.
 - **Improved Edge Case Handling**: Enhanced error handling for missing or malformed Lua files, ensuring more robust execution.
 - **Logging & Error Feedback**: Improved logging for better issue tracing.
 
----
+### **UPDATE 9**
+- **Lots of changes**: Overhauled the script a bit, now can decode base64 normally. Can decode tables, decod string.char-s aswell. Better identification of whats a function and whats not a function.
 
 ## 🚀 **How to Use**:
 
