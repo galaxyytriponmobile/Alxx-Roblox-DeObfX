@@ -94,8 +94,8 @@ def process_lua_code(path):
 
 if __name__ == '__main__':
     import sys
-    in_file = sys.argv[1] if len(sys.argv) > 1 else 'test.txt'
-    out_file = sys.argv[2] if len(sys.argv) > 2 else 'de_test.txt'
+    in_file = sys.argv[1] if len(sys.argv) > 1 else 'script.txt'
+    out_file = sys.argv[2] if len(sys.argv) > 2 else 'deobf_script.txt'
     deobf = process_lua_code(in_file)
     with open(out_file, 'w') as f:
         f.write(deobf)
