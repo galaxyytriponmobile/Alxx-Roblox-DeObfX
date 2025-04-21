@@ -1,14 +1,11 @@
-# 🐍 Python to Lua Converter
+# Python based roblox script de-obfuscator!
 
 **Luaminifier.py** and **Luaminf.manual.py**: Powerful Python utilities for deobfuscating and beautifying Lua scripts. These scripts allow you to make your Lua code more readable through automatic and manual renaming of variables and functions, as well as advanced decompilation techniques.
 
 ---
 
-## ⚠️ IMPORTANT NOTICE: READ BEFORE STARTING THE SCRIPT! ⚠️
-------------------------------------------------------------
-🚨 **DO NOT EXECUTE THE CODE WITHOUT FOLLOWING THESE INSTRUCTIONS!** 🚨  
-Make sure to **TWEAK THE CODE** at **Line 173** and **Line 176** in `luaminifier.py` before running the script.  
-------------------------------------------------------------  
+## ⚠️ IMPORTANT NOTICE: READ USAGE BEFORE STARTING THE SCRIPT! ⚠️
+  
 
 **Potential Issues**  
 If the script **closes unexpectedly**, you may have misconfigured it during the tweaks.  
@@ -85,12 +82,12 @@ A fully new test file, just for now.
 
 ### Step 1: Run **Luaminifier.py** to Deobfuscate Lua Code
 1. Open a terminal or command line in the directory containing the `luaminifier.py` script.
-2. Ensure you've updated **Line 173** and **Line 176** with your file paths.
+2. MAKE SURE TO HAVE YOUR SCRIPT THAT YOU WANT TO EXECUTE BE NAMED; `script.txt` AND IT BEING IN THE SAME DIRECTORY AS THE DE-OBFUSCATOR!
 3. Run the script to deobfuscate your Lua code:
     ```bash
     python luaminifier.py
     ```
-
+4. Your new file will be named; `deobf_script.txt`
 ### Step 2: Run **Luaminf.manual.py** for Manual/Automated Renaming
 1. Once your Lua code is deobfuscated, run `luaminf.manual.py` to manually or automatically rename variables and functions for better readability.
 2. The script will prompt you to either manually rename or automate the renaming based on a pattern:
