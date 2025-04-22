@@ -28,13 +28,18 @@ A Python-based tool designed to enhance the readability of obfuscated Lua script
 A complementary script to **Luaminifier.py**. This tool offers **manual and automated renaming** of variables and functions after the initial deobfuscation process, giving users full control over making Lua scripts readable and maintainable.
 
 
-### 3. **testfile.py** (NEWEST)
+### 3. **testfile.py** 
 A fully new test file, just for now. 
 - **Requirements**: openai api key (paid).
 - `pip install openai` to actually use.
 - uses chatgpt after de-obfuscation, to help rename functions and variables, and change the spacing errors (obviously could be done manually).
-- Has not been tested yet!
+- **Has not been tested yet!**
 
+### 4. **deobfuscator.exe**
+Made by auto-py-to-exe, and does the same asthe deobfuscator, in a gui.
+- Can select your script instead of it being already stated.
+- GUI form.
+- Easier use
   
 #### Key Features:
 - **Interactive Renaming**: Detects all variables and functions in the deobfuscated Lua script and allows the user to manually rename them for better readability.
