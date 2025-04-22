@@ -4,7 +4,7 @@
 # USAGE
 **1. Download the whole zip folder, this way it downloads the .exe correctly aswell.**
 
-**2. Execute as intended, select your input file, write your output file.**
+**2. Execute the .exe as intended, select your input file, write your output file.**
 
 **3. ENJOY!**
 
