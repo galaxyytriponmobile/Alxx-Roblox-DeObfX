@@ -82,7 +82,7 @@ A fully new test file, just for now.
 
 ### Step 1: Run **Luaminifier.py** to Deobfuscate Lua Code
 1. Open a terminal or command line in the directory containing the `luaminifier.py` script.
-2. MAKE SURE TO HAVE YOUR SCRIPT THAT YOU WANT TO EXECUTE BE NAMED; `script.txt` AND IT BEING IN THE SAME DIRECTORY AS THE DE-OBFUSCATOR!
+2. MAKE SURE TO HAVE YOUR SCRIPT THAT YOU WANT TO DE-OBFUSCATE BE NAMED; `script.txt` AND IT BEING IN THE SAME DIRECTORY AS THE DE-OBFUSCATOR!
 3. Run the script to deobfuscate your Lua code:
     ```bash
     python luaminifier.py
