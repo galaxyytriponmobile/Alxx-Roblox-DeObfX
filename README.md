@@ -78,6 +78,9 @@ A fully new test file, just for now.
 ### **UPDATE 9**
 - **Lots of changes**: Overhauled the script a bit, now can decode base64 normally. Can decode tables, decod string.char-s aswell. Better identification of whats a function and whats not a function.
 
+### **UPDATE 10**
+- **Math**: Can do simple math now.
+  
 ## 🚀 **How to Use**:
 
 ### Step 1: Run **Luaminifier.py** to Deobfuscate Lua Code
