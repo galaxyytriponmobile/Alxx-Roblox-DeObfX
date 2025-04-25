@@ -9,8 +9,10 @@
 **3. ENJOY!**
 
 *ADDITIONAL FILES*
-- testfile.py: Usage of chatgpt after deobfuscation (not done yet).
-- luaminifier.py: Original file, executable (make sure to have your file that you want to deobfuscate be named `script.txt` and be in the same directory as the deobfuscator.)
 - luaminifier.manual.py: Complimentary script for luaminifier.py or deobfuscator.exe. Can automatically or manually rename functions and variables to liking.
   
 Made with AI, expect mistakes.
+
+# I have tested my script and idk why but anti-viruses flag as malware!
+
+Youtube video on how to use coming soon!
