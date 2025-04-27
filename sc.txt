@@ -1,0 +1,184 @@
+import re, ast, base64, tkinter as tk
+from tkinter import filedialog, messagebox, scrolledtext
+import os, threading,
+
+# PYTHON
+
+
+# ----------------- LUA DEOBFUSCATOR CORE -----------------
+
+def safe_eval(expr):
+    node = ast.parse(expr, mode='eval')
+    def eval_node(node):
+        if isinstance(node, ast.Expression): return eval_node(node.body)
+        elif isinstance(node, ast.Constant): return node.value
+        elif isinstance(node, ast.BinOp):
+            left = eval_node(node.left)
+            right = eval_node(node.right)
+            if isinstance(node.op, ast.Add): return left + right
+            if isinstance(node.op, ast.Sub): return left - right
+            if isinstance(node.op, ast.Mult): return left * right
+            if isinstance(node.op, ast.Div): return left / right
+            if isinstance(node.op, ast.FloorDiv): return left // right
+        elif isinstance(node, ast.UnaryOp):
+            if isinstance(node.op, ast.USub): return -eval_node(node.operand)
+        raise ValueError("Unsafe expression")
+    return str(eval_node(node))
+
+def eval_math_expressions(code):
+    pattern = re.compile(r'(?<![\w])([-+]?\d+(?:\.\d+)?(?:\s*[-+*/]\s*[-+]?\d+(?:\.\d+)?)+)(?![\w])')
+    def repl(match):
+        expr = match.group(1)
+        try: return safe_eval(expr)
+        except: return expr
+    prev = None
+    while prev != code:
+        prev = code
+        code = pattern.sub(repl, code)
+    return code
+
+def beautify_code(code):
+    indent_level, beautified = 0, ''
+    indent_keywords = {'function', 'if', 'else', 'elseif', 'for', 'while', 'do'}
+    unindent_keywords = {'end', 'else', 'elseif'}
+    for line in code.splitlines():
+        stripped = line.strip()
+        if any(stripped.startswith(kw) for kw in unindent_keywords): indent_level = max(indent_level - 1, 0)
+        beautified += '    ' * indent_level + stripped + '\n' if stripped else '\n'
+        if any(stripped.startswith(kw) for kw in indent_keywords): indent_level += 1
+    return beautified
+
+def inline_string_chars(code):
+    code = re.sub(
+        r'string\.char\(([0-9,\s]+)\)',
+        lambda m: '"' + ''.join(chr(int(x)) for x in m.group(1).split(',')) + '"',
+        code
+    )
+    def repl_table(match):
+        var, nums = match.group(1), match.group(2)
+        s = ''.join(chr(int(x)) for x in nums.split(','))
+        return f'local {var}_resolved = "{s}"'
+    return re.sub(r'local\s+(\w+)\s*=\s*\{([\d,\s]+)\}', repl_table, code)
+
+def decode_base64_literals(code):
+    def repl(match):
+        b64 = match.group(1)
+        try: return '"' + base64.b64decode(b64).decode('utf-8') + '"'
+        except: return match.group(0)
+    return re.sub(r'"([A-Za-z0-9+/=]{8,})"', repl, code)
+
+def emulate_loadstring(code):
+    def repl(match):
+        left, right = match.group(1), match.group(2)
+        return f'local _exec = loadstring({left} .. {right})\n_exec()'
+    return re.sub(r'loadstring\((\w+_resolved)\s*\.\.\s*(\w+_resolved)\)', repl, code)
+
+def resolve_multilayer_loadstrings(code):
+    for _ in range(5):
+        matches = re.findall(r'loadstring\((.*?)\)', code)
+        for match in matches:
+            try:
+                decoded = eval(match)
+                if isinstance(decoded, str):
+                    code = code.replace(f'loadstring({match})', decoded)
+            except: continue
+    return code
+
+def rename_identifiers(code):
+    vars_ = re.findall(r'local\s+(\w+)', code)
+    var_map = {v: f'deobf_var_{i+1}' for i, v in enumerate(vars_) if not v.endswith('_resolved')}
+    for orig, new in var_map.items():
+        code = re.sub(rf'(?<!\.)\b{orig}\b', new, code)
+    funcs = re.findall(r'function\s+(\w+)', code)
+    func_map = {f: f'deobf_func_{i+1}' for i, f in enumerate(funcs)}
+    for orig, new in func_map.items():
+        code = re.sub(rf'\b{orig}\b', new, code)
+    return code
+
+def constant_propagation(code):
+    assignments = re.findall(r'local\s+(\w+)\s*=\s*(["\'].*?["\'])', code)
+    for var, val in assignments:
+        code = re.sub(rf'(?<!\.)\b{var}\b', val, code)
+    return code
+
+def eliminate_dead_code(code):
+    return re.sub(r'local\s+\w+\s*=\s*function\(\)\s*end', '', code)
+
+def simplify_control_flow(code):
+    code = re.sub(r'if true then\s*(.*?)\s*end', r'\1', code, flags=re.DOTALL)
+    return re.sub(r'if false then\s*.*?end', '', code, flags=re.DOTALL)
+
+def global_to_local(code):
+    globals_ = re.findall(r'(\w+)\s*=\s*', code)
+    for var in globals_:
+        code = re.sub(rf'(?<!local )\b{var}\b(?=\s*=)', f'local {var}', code)
+    return code
+
+def calculate_obfuscation_score(code):
+    score = 0
+    score += len(re.findall(r'string\.char', code)) * 5
+    score += len(re.findall(r'base64', code)) * 5
+    score += len(re.findall(r'\.\.', code)) * 2
+    score += len(re.findall(r'loadstring', code)) * 10
+    return min(score, 100)
+
+def process_lua_code(path):
+    with open(path, 'r', encoding='utf-8') as f:
+        code = f.read()
+    code = inline_string_chars(code)
+    code = decode_base64_literals(code)
+    code = emulate_loadstring(code)
+    code = resolve_multilayer_loadstrings(code)
+    code = rename_identifiers(code)
+    code = eval_math_expressions(code)
+    code = constant_propagation(code)
+    code = eliminate_dead_code(code)
+    code = simplify_control_flow(code)
+    code = global_to_local(code)
+    code = beautify_code(code)
+    return code
+
+# ----------------- GUI FRONTEND -----------------
+def run_gui():
+    root = tk.Tk()
+    root.title("Lua Deobfuscator - Alxx Edition")
+    root.iconbitmap("icon.ico") if os.path.exists("icon.ico") else None
+
+    messagebox.showinfo("Welcome", "🔍 Welcome to Alxx's Lua Deobfuscator GUI!")
+
+    input_path = filedialog.askopenfilename(
+        title="📝 Select Obfuscated Lua Script",
+        filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
+    )
+    if not input_path:
+        messagebox.showwarning("Cancelled", "No input file selected.")
+        return
+
+    output_path = filedialog.asksaveasfilename(
+        defaultextension=".txt",
+        title="📁 Save Deobfuscated Script As",
+        filetypes=[("Text files", "*.txt")]
+    )
+    if not output_path:
+        messagebox.showwarning("Cancelled", "No output file selected.")
+        return
+
+    try:
+        deobf = process_lua_code(input_path)
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(deobf)
+
+        viewer = tk.Toplevel(root)
+        viewer.title("📖 Deobfuscated Code Viewer")
+        text_widget = scrolledtext.ScrolledText(viewer, wrap=tk.WORD, font=("Courier", 10))
+        text_widget.pack(expand=True, fill=tk.BOTH)
+        text_widget.insert(tk.END, deobf)
+        text_widget.config(state=tk.DISABLED)
+
+        score = calculate_obfuscation_score(deobf)
+        messagebox.showinfo("✅ Done", f"Deobfuscated code saved to:\\n{output_path}\\nObfuscation Score: {score}/100")
+    except Exception as e:
+        messagebox.showerror("❌ Error", f"Something went wrong:\\n{str(e)}")
+
+if __name__ == '__main__':
+    run_gui()
